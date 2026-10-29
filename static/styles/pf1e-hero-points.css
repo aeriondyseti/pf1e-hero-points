@@ -1,0 +1,30 @@
+.chat-message .pf1e-hero-points.banner {
+  border-left: 3px solid var(--color-warm-2, #c9593f);
+  padding: 2px 6px;
+  margin-bottom: 2px;
+  font-size: var(--font-size-12, 12px);
+  line-height: 1.4;
+}
+
+.chat-message .pf1e-hero-points.banner i,
+.pf1e-hero-points-toggle i {
+  color: var(--color-warm-2, #c9593f);
+}
+
+.pf1e-hero-points-toggle:has(input:disabled) {
+  opacity: 0.5;
+}
+
+.item .item-control.pf1e-hero-points-arm {
+  opacity: 0.45;
+}
+
+.item .item-control.pf1e-hero-points-arm:hover,
+.item .item-control.pf1e-hero-points-arm.active {
+  opacity: 1;
+}
+
+.item .item-control.pf1e-hero-points-arm.active i {
+  color: var(--color-warm-2, #c9593f);
+  text-shadow: 0 0 6px var(--color-warm-2, #c9593f);
+}

@@ -1,0 +1,61 @@
+{
+  "pf1e-hero-points": {
+    "Label": "Hero Point",
+    "Menu": {
+      "reroll": "Hero Point: Reroll",
+      "bonus": "Hero Point: +4 Bonus",
+      "aid": "Hero Point: Aid (+2)"
+    },
+    "Banner": {
+      "Title": "Hero Point",
+      "Reroll": "Reroll",
+      "Bonus": "+{amount} Bonus",
+      "Aid": "Aided by {name} (+{amount})",
+      "Was": "Was {total}",
+      "NewThreat": "Now threatens a critical hit: roll the confirmation separately.",
+      "LostThreat": "No longer threatens a critical hit: ignore the original confirmation.",
+      "Feat": "{feat}: {effect}",
+      "LuckSpent": "rolled {roll}, point spent",
+      "LuckKept": "rolled {roll}, point not spent!"
+    },
+    "Confirm": {
+      "Title": "Spend a Hero Point?",
+      "reroll": "Spend 1 of {name}'s {count} Hero Points to reroll {roll}? The new result stands, even if it's worse.",
+      "bonus": "Spend 1 of {name}'s {count} Hero Points for +{amount} on {roll}?",
+      "aid": "Spend 1 of {name}'s {count} Hero Points to give {target} +{amount} on {roll}?"
+    },
+    "Choose": {
+      "Roll": "Which roll?",
+      "Helper": "Who spends the Hero Point?"
+    },
+    "Before": {
+      "Toggle": "+{amount} luck bonus ({count} left)",
+      "Applied": "{name} spends a Hero Point: +{amount} on {roll}."
+    },
+    "Arm": {
+      "ArmTooltip": "Hero Point: +{amount} on your next d20 roll",
+      "DisarmTooltip": "Hero Point armed: +{amount} on your next d20 roll (click to cancel)",
+      "Armed": "{name} commits a Hero Point: +{amount} on their next d20 roll.",
+      "Disarmed": "{name} keeps their Hero Point."
+    },
+    "Warn": {
+      "NoPoints": "{name} has no Hero Points left.",
+      "PostFailed": "Couldn't post the Hero Point result; the point was refunded.",
+      "OncePerRound": "{name} has already spent a Hero Point this round."
+    },
+    "Settings": {
+      "ItemName": {
+        "Name": "Hero Points item name",
+        "Hint": "Name of the feature item (with Limited Uses) that holds each character's Hero Points. Matched case-insensitively."
+      },
+      "OncePerRound": {
+        "Name": "One Hero Point per round",
+        "Hint": "Enforce the APG limit: a character in combat can spend only one Hero Point per round."
+      },
+      "ConfirmSpend": {
+        "Name": "Confirm before spending",
+        "Hint": "Ask for confirmation before a Hero Point is spent from the chat menu."
+      }
+    }
+  }
+}
