@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { useOnMessage } from "../src/apply";
-import { claimBeforeRoll } from "../src/before-roll";
+import { claimBeforeRoll, settled } from "../src/before-roll";
 import { hasFeat, pay } from "../src/feats";
 import { spentThisRound } from "../src/hero-points";
 import { rollTargets } from "../src/targets";
-import { FakeActor, FakeD20Roll, FakeItem, FakeRoll, d20Roll, installGlobals, type World } from "./fakes";
+import { FakeActor, FakeItem, FakeRoll, d20Roll, installGlobals, posted, type World } from "./fakes";
 
 let points: FakeItem;
 let actor: FakeActor;
@@ -26,7 +26,7 @@ const message = () => ({
   whisper: [],
   rolls: [d20Roll(6, 5, { flavor: "Perception" })],
 });
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush = () => settled();
 
 describe("hasFeat", () => {
   it("matches by name, curly apostrophes included, and ignores disabled feats", () => {
@@ -40,37 +40,45 @@ describe("Luck of Heroes", () => {
   beforeEach(() => actor.items.push(feat("Luck of Heroes")));
 
   it("keeps the point on 16+ for a reroll", async () => {
-    FakeRoll.luck = [16];
+    FakeRoll.d20s = [16];
     expect(await pay(actor, "reroll")).toEqual({ ok: true, spent: false, luckRoll: 16 });
     expect(points.charges).toBe(2);
   });
 
   it("spends the point on 15 or less", async () => {
-    FakeRoll.luck = [15];
+    FakeRoll.d20s = [15];
     expect(await pay(actor, "reroll")).toEqual({ ok: true, spent: true, luckRoll: 15 });
     expect(points.charges).toBe(1);
   });
 
   it("doesn't apply to after-the-roll bonuses or aiding", async () => {
-    FakeRoll.luck = [20, 20];
+    FakeRoll.d20s = [20, 20];
     expect((await pay(actor, "bonus")).luckRoll).toBeUndefined();
     expect((await pay(actor, "aid")).luckRoll).toBeUndefined();
     expect(points.charges).toBe(0);
   });
 
   it("applies to the +8 before the roll", async () => {
-    FakeRoll.luck = [19];
+    FakeRoll.d20s = [19];
     expect(claimBeforeRoll(actor)).toBe("8[pf1e-hero-points.Label]");
     await flush();
     expect(points.charges).toBe(2);
   });
 
+  it("still counts as the round's Hero Point use when it keeps the point", async () => {
+    world.combat = { id: "c1", round: 1, started: true, combatants: [{ actor }] };
+    installGlobals(world);
+    FakeRoll.d20s = [18];
+    expect((await pay(actor, "reroll")).spent).toBe(false);
+    expect(spentThisRound(actor)).toBe(true);
+  });
+
   it("is reported on the chat result", async () => {
-    FakeRoll.luck = [17];
+    FakeRoll.d20s = [10, 17]; // the reroll, then the Luck of Heroes d20
     const msg = message();
     await useOnMessage(msg, "reroll", { target: rollTargets(msg)[0] });
-    expect(FakeD20Roll.posted[0].data.flavor).toContain("Banner.LuckKept");
-    expect(FakeD20Roll.posted[0].data.flags["pf1e-hero-points"].spent).toBe(false);
+    expect(posted[0].data.flavor).toContain("Banner.LuckKept");
+    expect(posted[0].data.flags["pf1e-hero-points"].spent).toBe(false);
   });
 });
 
@@ -80,7 +88,7 @@ describe("Fate's Favored", () => {
   it("raises the roller's luck bonus by 1", async () => {
     const msg = message();
     await useOnMessage(msg, "bonus", { target: rollTargets(msg)[0] });
-    expect(FakeD20Roll.posted[0].roll.total).toBe(16);
+    expect(posted[0].roll.total).toBe(16);
     expect(claimBeforeRoll(actor)).toBe("9[pf1e-hero-points.Label]");
   });
 
@@ -89,7 +97,7 @@ describe("Fate's Favored", () => {
     actor.items.pop();
     const msg = message();
     await useOnMessage(msg, "aid", { target: rollTargets(msg)[0], helper });
-    expect(FakeD20Roll.posted[0].roll.total).toBe(13);
+    expect(posted[0].roll.total).toBe(13);
   });
 });
 

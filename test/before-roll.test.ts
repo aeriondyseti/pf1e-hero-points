@@ -1,14 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  ROLLDATA_KEY,
-  claimBeforeRoll,
-  isArmed,
-  onPreAttackRoll,
-  onPreD20Roll,
-  requestForRoll,
-  setArmed,
-} from "../src/before-roll";
-import { FakeActor, FakeItem, installGlobals } from "./fakes";
+import { claimBeforeRoll, isArmed, onPreAttackRoll, onPreD20Roll, setArmed, setToggle, settled } from "../src/before-roll";
+import { FakeActor, FakeItem, FakeRoll, installGlobals } from "./fakes";
 
 let points: FakeItem;
 let actor: FakeActor;
@@ -19,14 +11,14 @@ beforeEach(() => {
   installGlobals({ actors: { seoni: actor }, settings: { itemName: "Hero Points", oncePerRound: true } });
 });
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush = () => settled();
 const checkRoll = (isStatic = false) => ({ isStatic, options: { flavor: "Perception" }, addBonus: vi.fn() });
 const PART = "8[pf1e-hero-points.Label]";
 
 describe("check dialog toggle", () => {
   it("adds +8 to the toggled roll and spends the point", async () => {
     const roll = checkRoll();
-    requestForRoll(roll, true);
+    setToggle(roll, true);
     onPreD20Roll(roll, { speaker: { actor: "seoni" } });
     expect(roll.addBonus).toHaveBeenCalledWith(PART);
     await flush();
@@ -36,8 +28,8 @@ describe("check dialog toggle", () => {
   it("leaves untoggled and untoggled-again rolls alone", async () => {
     const untouched = checkRoll();
     const changedMind = checkRoll();
-    requestForRoll(changedMind, true);
-    requestForRoll(changedMind, false);
+    setToggle(changedMind, true);
+    setToggle(changedMind, false);
     onPreD20Roll(untouched, { speaker: { actor: "seoni" } });
     onPreD20Roll(changedMind, { speaker: { actor: "seoni" } });
     expect(untouched.addBonus).not.toHaveBeenCalled();
@@ -48,7 +40,7 @@ describe("check dialog toggle", () => {
 
   it("doesn't spend on Take 10/20", async () => {
     const roll = checkRoll(true);
-    requestForRoll(roll, true);
+    setToggle(roll, true);
     onPreD20Roll(roll, { speaker: { actor: "seoni" } });
     expect(roll.addBonus).not.toHaveBeenCalled();
     await flush();
@@ -60,7 +52,8 @@ describe("attack dialog toggle", () => {
   const action = () => ({ actor, item: { name: "Longsword" } });
 
   it("adds +8 to the first attack roll of the action only", async () => {
-    const rollData: Record<string, unknown> = { [ROLLDATA_KEY]: true };
+    const rollData = {};
+    setToggle(rollData, true);
     const first: string[] = [];
     const second: string[] = [];
     onPreAttackRoll(action(), {}, rollData, {}, first);
@@ -73,7 +66,9 @@ describe("attack dialog toggle", () => {
 
   it("does nothing when the toggle is off", () => {
     const parts: string[] = [];
-    onPreAttackRoll(action(), {}, { [ROLLDATA_KEY]: false }, {}, parts);
+    const off = {};
+    setToggle(off, false);
+    onPreAttackRoll(action(), {}, off, {}, parts);
     onPreAttackRoll(action(), {}, {}, {}, parts);
     expect(parts).toEqual([]);
   });
@@ -120,7 +115,7 @@ describe("armed from the sheet's star", () => {
   it("yields to a dialog where the toggle was unticked, staying armed", async () => {
     await setArmed(actor, true);
     const roll = checkRoll();
-    requestForRoll(roll, false);
+    setToggle(roll, false);
     onPreD20Roll(roll, { speaker: { actor: "seoni" } });
     expect(roll.addBonus).not.toHaveBeenCalled();
     await flush();
@@ -130,7 +125,7 @@ describe("armed from the sheet's star", () => {
   it("spends only one point when the dialog toggle is ticked as well", async () => {
     await setArmed(actor, true);
     const roll = checkRoll();
-    requestForRoll(roll, true);
+    setToggle(roll, true);
     onPreD20Roll(roll, { speaker: { actor: "seoni" } });
     await flush();
     expect(roll.addBonus).toHaveBeenCalledTimes(1);
@@ -160,7 +155,46 @@ describe("armed from the sheet's star", () => {
   });
 });
 
+describe("batched updates", () => {
+  it("records the round and disarms in one actor update", async () => {
+    installGlobals({
+      actors: { seoni: actor },
+      settings: { itemName: "Hero Points", oncePerRound: true },
+      combat: { id: "c1", round: 4, started: true, combatants: [{ actor }] },
+    });
+    await setArmed(actor, true);
+    actor.updates.length = 0;
+    onPreD20Roll(checkRoll(), { speaker: { actor: "seoni" } });
+    await flush();
+    expect(actor.updates).toEqual([
+      { "flags.pf1e-hero-points.-=armed": null, "flags.pf1e-hero-points.lastSpent": { combat: "c1", round: 4 } },
+    ]);
+  });
+});
+
+describe("a point that vanishes between claim and spend", () => {
+  it("warns instead of claiming it was spent", async () => {
+    // Luck of Heroes rolls before spending, which leaves room for another client to spend the point.
+    actor.items.push(Object.assign(new FakeItem("Luck of Heroes", Infinity)));
+    FakeRoll.d20s = [5];
+    await setArmed(actor, true);
+    onPreD20Roll(checkRoll(), { speaker: { actor: "seoni" } });
+    points.charges = 0;
+    await flush();
+    const ui = (globalThis as any).ui.notifications;
+    expect(ui.warn).toHaveBeenCalledWith(expect.stringContaining("Before.NotPaid"));
+    expect(ui.info).not.toHaveBeenCalledWith(expect.stringContaining("Before.Applied"));
+  });
+});
+
 describe("claimBeforeRoll", () => {
+  it("ignores a roll with no speaker", () => {
+    const roll = checkRoll();
+    setToggle(roll, true);
+    onPreD20Roll(roll, {});
+    expect(roll.addBonus).not.toHaveBeenCalled();
+  });
+
   it("refuses with no points or someone else's actor", () => {
     points.charges = 0;
     expect(claimBeforeRoll(actor)).toBeNull();

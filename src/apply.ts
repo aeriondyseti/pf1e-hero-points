@@ -3,7 +3,7 @@
 import { HERO_USES, MODULE_ID, type ChatUse } from "./constants";
 import { FATES_FAVORED, LUCK_OF_HEROES, luckBonusExtra, pay, type Payment } from "./feats";
 import { heroPoints, refund, spentThisRound } from "./hero-points";
-import { threatens, withFlatBonus, type RollJSON } from "./rules";
+import { d20Expression, threatens, withD20, withFlatBonus, type RollJSON } from "./rules";
 import type { RollTarget } from "./targets";
 import { confirmSpend, escapeHtml, t } from "./ui";
 
@@ -74,8 +74,27 @@ function banner({ message, use, target, fresh, helper, amount, payment }: Banner
 }
 
 async function buildRoll(use: ChatUse, roll: RollJSON, amount: number): Promise<any> {
-  if (use === "reroll") return Roll.fromData(roll).reroll();
-  return Roll.fromData(withFlatBonus(roll, amount, t("Label")));
+  if (use !== "reroll") return Roll.fromData(withFlatBonus(roll, amount, t("Label")));
+  const d20 = await new Roll(d20Expression(roll)).evaluate();
+  return Roll.fromData(withD20(roll, d20.terms[0].toJSON()));
+}
+
+/** Message data for the result, built by the roll's own toMessage so pf1 renders it as usual. */
+async function resultMessageData(message: any, fresh: any, messageData: Record<string, unknown>, rolledDice: boolean): Promise<any> {
+  const rollMode = rollModeOf(message);
+  if (fresh instanceof pf1.dice.D20RollPF) {
+    // Checks keep their subject and reference so pf1 still records a rerolled save on the card
+    // that asked for it; attack rolls point back at their action card instead.
+    const isCheck = message.type === "check";
+    return fresh.toMessage(messageData, {
+      create: false,
+      rollMode,
+      noSound: !rolledDice,
+      subject: isCheck ? message.system?.subject : undefined,
+      reference: (isCheck && message.system?.reference) || message.uuid,
+    });
+  }
+  return fresh.toMessage(messageData, { create: false, rollMode });
 }
 
 /** Spend a Hero Point on a chat roll and post the result. Resolves to the new message, or null. */
@@ -100,7 +119,7 @@ export async function useOnMessage(message: any, use: ChatUse, { target, helper,
     if (!(await confirmSpend(t(`Confirm.${use}`, data)))) return null;
   }
 
-  // Roll first: a reroll can prompt for manual dice entry, and cancelling that shouldn't cost a point.
+  // Roll before paying, so a roll that throws (or a bad formula) costs nothing.
   const fresh = await buildRoll(use, target.roll, amount);
   const payment = await pay(spender, use);
   if (!payment.ok) {
@@ -125,22 +144,14 @@ export async function useOnMessage(message: any, use: ChatUse, { target, helper,
   if (!rolledDice) messageData.sound = null;
 
   try {
-    const rollMode = rollModeOf(message);
-    if (fresh instanceof pf1.dice.D20RollPF) {
-      // Checks keep their subject and reference so pf1 still records a rerolled save on the card
-      // that asked for it; attack rolls point back at their action card instead.
-      const isCheck = message.type === "check";
-      return await fresh.toMessage(messageData, {
-        rollMode,
-        noSound: !rolledDice,
-        subject: isCheck ? message.system?.subject : undefined,
-        reference: (isCheck && message.system?.reference) || message.uuid,
-      });
-    }
-    return await fresh.toMessage(messageData, { rollMode });
+    const data = await resultMessageData(message, fresh, messageData, rolledDice);
+    // Same audience as the original: a roll mode can't express "whispered to these players".
+    data.whisper = [...(message.whisper ?? [])];
+    data.blind = !!message.blind;
+    return await ChatMessage.implementation.create(data);
   } catch (err) {
     console.error(`${MODULE_ID} | posting the Hero Point result failed`, err);
-    if (payment.spent) await refund(spender, HERO_USES[use].cost);
+    await refund(spender, payment.spent ? HERO_USES[use].cost : 0);
     ui.notifications.error(t("Warn.PostFailed"));
     return null;
   }

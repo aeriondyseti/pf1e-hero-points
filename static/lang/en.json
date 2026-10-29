@@ -30,13 +30,20 @@
     },
     "Before": {
       "Toggle": "+{amount} luck bonus ({count} left)",
-      "Applied": "{name} spends a Hero Point: +{amount} on {roll}."
+      "Applied": "{name} spends a Hero Point: +{amount} on {roll}.",
+      "NotPaid": "{name} had no Hero Point left to pay for the +{amount} on {roll}."
     },
     "Arm": {
       "ArmTooltip": "Hero Point: +{amount} on your next d20 roll",
       "DisarmTooltip": "Hero Point armed: +{amount} on your next d20 roll (click to cancel)",
       "Armed": "{name} commits a Hero Point: +{amount} on their next d20 roll.",
       "Disarmed": "{name} keeps their Hero Point."
+    },
+    "Add": {
+      "Menu": "Add Hero Points",
+      "Created": "Added Hero Points to {name}.",
+      "Repaired": "Set up {name}'s Hero Points item to track uses.",
+      "Nothing": "Everyone already has Hero Points."
     },
     "Warn": {
       "NoPoints": "{name} has no Hero Points left.",
@@ -56,6 +63,11 @@
         "Name": "Confirm before spending",
         "Hint": "Ask for confirmation before a Hero Point is spent from the chat menu."
       }
+    },
+    "Fallback": {
+      "Attack": "Attack",
+      "CritConfirm": "Critical Confirmation",
+      "Roll": "Roll"
     }
   }
 }
