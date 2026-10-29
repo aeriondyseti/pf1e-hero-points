@@ -1,6 +1,6 @@
 {
   "name": "pf1e-hero-points",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Foundry VTT v13 module for Pathfinder 1e: spend Hero Points on chat rolls.",

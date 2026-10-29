@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1]
+
+### Changed
+
+- Release builds use GitHub Actions on Node 24 and build from a clean install, without the shared
+  npm cache. No changes to the module itself.
+
 ## [0.2.0]
 
 ### Added
