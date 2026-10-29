@@ -15,8 +15,5 @@ export default defineConfig({
       formats: ["es"],
       fileName: () => "main.js",
     },
-    rollupOptions: {
-      output: { inlineDynamicImports: true },
-    },
   },
 });

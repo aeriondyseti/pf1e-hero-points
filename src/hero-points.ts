@@ -3,25 +3,28 @@ import { MODULE_ID, SPENT_FLAG } from "./constants";
 
 export const DEFAULT_ITEM_NAME = "Hero Points";
 
-function configuredName(): string {
+export function configuredName(): string {
   const name = game.settings.get(MODULE_ID, "itemName");
   return typeof name === "string" && name.trim() ? name : DEFAULT_ITEM_NAME;
 }
 
-const normalize = (s: unknown) => (typeof s === "string" ? s.trim().toLowerCase() : "");
+/** Item names compared loosely: case, surrounding space and curly apostrophes don't matter. */
+export function normalizeName(name: unknown): string {
+  return typeof name === "string" ? name.trim().toLowerCase().replace(/[‘’]/g, "'") : "";
+}
+
+/** The actor's enabled items with this name (pf1 isActive false means switched off on the sheet). */
+export function itemsNamed(actor: any, name: string): any[] {
+  const wanted = normalizeName(name);
+  return [...(actor?.items ?? [])].filter((item: any) => normalizeName(item.name) === wanted && item.isActive !== false);
+}
 
 /**
- * The actor's Hero Points item: one named like the itemName setting (case-insensitive) that has
- * limited uses. pf1 reports items without limited uses as having Infinity charges; those are skipped.
+ * The actor's Hero Points item: one named like the itemName setting that has limited uses. pf1
+ * reports items without limited uses as having Infinity charges; those are skipped.
  */
 export function heroPointItem(actor: any, name: string = configuredName()): any | undefined {
-  if (!actor?.items) return undefined;
-  const wanted = normalize(name);
-  for (const item of actor.items) {
-    if (normalize(item.name) !== wanted) continue;
-    if (Number.isFinite(item.charges)) return item;
-  }
-  return undefined;
+  return itemsNamed(actor, name).find((item) => Number.isFinite(item.charges));
 }
 
 /** Hero Points the actor has left (0 with no usable item). */
@@ -52,21 +55,30 @@ export function spentThisRound(actor: any): boolean {
 }
 
 /**
+ * Record a Hero Point use on the actor: the combat round it was used in (for the one-per-round
+ * limit), plus any other actor changes the caller wants made in the same update.
+ */
+export async function recordUse(actor: any, actorUpdate: Record<string, unknown> = {}): Promise<void> {
+  const update = { ...actorUpdate };
+  const now = combatRound(actor);
+  if (now) update[`flags.${MODULE_ID}.${SPENT_FLAG}`] = now;
+  if (Object.keys(update).length) await actor.update(update);
+}
+
+/**
  * Deduct Hero Points from the actor's item. Returns false (and spends nothing) if the actor
- * doesn't have enough. Records the combat round it was spent in.
+ * doesn't have enough.
  */
 export async function spend(actor: any, cost = 1, name?: string): Promise<boolean> {
   const item = heroPointItem(actor, name);
   if (!item || item.charges < cost) return false;
   await item.addCharges(-cost);
-  const now = combatRound(actor);
-  if (now) await actor.setFlag(MODULE_ID, SPENT_FLAG, now);
   return true;
 }
 
-/** Give Hero Points back, used when posting the result fails after the spend. */
+/** Undo a use when posting its result fails: give back `cost` points and lift the round lock. */
 export async function refund(actor: any, cost = 1, name?: string): Promise<void> {
   const item = heroPointItem(actor, name);
-  if (item) await item.addCharges(cost);
-  await actor?.unsetFlag?.(MODULE_ID, SPENT_FLAG);
+  if (item && cost) await item.addCharges(cost);
+  if (actor?.getFlag?.(MODULE_ID, SPENT_FLAG)) await actor.update({ [`flags.${MODULE_ID}.-=${SPENT_FLAG}`]: null });
 }

@@ -4,6 +4,7 @@
 // message.rolls. pf1 action cards keep each attack's attack and crit-confirmation rolls in
 // message.systemRolls.attacks[i] instead, rendered inside `.chat-attack[data-index=i]`.
 import { isD20Roll, type RollJSON } from "./rules";
+import { t } from "./ui";
 
 export type RollTarget =
   | { kind: "roll"; index: number; roll: RollJSON; label: string }
@@ -27,7 +28,7 @@ export function rollTargets(message: any): RollTarget[] {
       for (const field of ["attack", "critConfirm"] as const) {
         const roll = toJSON(atk?.[field]);
         if (!isD20Roll(roll)) continue;
-        const flavor = roll.options?.flavor || (field === "attack" ? "Attack" : "Critical Confirmation");
+        const flavor = roll.options?.flavor || t(field === "attack" ? "Fallback.Attack" : "Fallback.CritConfirm");
         out.push({ kind: "attack", attackIndex, field, roll, label: `${flavor}: ${roll.total}` });
       }
     });
@@ -37,7 +38,7 @@ export function rollTargets(message: any): RollTarget[] {
   (message?.rolls ?? []).forEach((r: any, index: number) => {
     const roll = toJSON(r);
     if (!isD20Roll(roll)) return;
-    const flavor = roll.options?.flavor || message.flavor || "Roll";
+    const flavor = roll.options?.flavor || message.flavor || t("Fallback.Roll");
     out.push({ kind: "roll", index, roll, label: `${flavor}: ${roll.total}` });
   });
   return out;

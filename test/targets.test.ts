@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { pickTarget, rollTargets } from "../src/targets";
-import { d20Roll } from "./fakes";
+import { d20Roll, installGlobals } from "./fakes";
+
+installGlobals({ actors: {}, settings: {} });
 
 const damage = { ...d20Roll(4, 3), terms: [{ class: "Die", faces: 8, number: 1, results: [{ result: 4 }] }] };
 

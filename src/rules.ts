@@ -9,6 +9,7 @@ export interface RollTermJSON {
   number?: number;
   operator?: string;
   method?: string;
+  modifiers?: string[];
   results?: { result: number; active?: boolean; discarded?: boolean }[];
   [key: string]: unknown;
 }
@@ -37,8 +38,7 @@ export function canReroll(roll: RollJSON): boolean {
 
 /** The kept d20 result, or undefined when it cannot be read. */
 export function naturalD20(roll: RollJSON): number | undefined {
-  const results = roll.terms[0]?.results ?? [];
-  const kept = results.filter((r) => r.active !== false && !r.discarded);
+  const kept = (roll.terms[0]?.results ?? []).filter((r) => r.active !== false && !r.discarded);
   return kept.length === 1 ? kept[0].result : undefined;
 }
 
@@ -47,6 +47,30 @@ export function threatens(roll: RollJSON): boolean {
   const natural = naturalD20(roll);
   const range = roll.options?.critical;
   return natural !== undefined && Number.isFinite(range) && natural >= range;
+}
+
+/** Sum of a dice term's kept results. */
+function keptTotal(term: RollTermJSON): number {
+  return (term.results ?? []).filter((r) => r.active !== false && !r.discarded).reduce((sum, r) => sum + r.result, 0);
+}
+
+/** The formula of a roll's leading d20 term alone, modifiers included (`1d20`, `2d20kh`). */
+export function d20Expression(roll: RollJSON): string {
+  const die = roll.terms[0];
+  const modifiers = Array.isArray(die.modifiers) ? die.modifiers.join("") : "";
+  return `${die.number ?? 1}d${die.faces ?? 20}${modifiers}`;
+}
+
+/**
+ * A copy of an evaluated roll with its leading d20 replaced by a freshly rolled one. Only the d20
+ * is rerolled (APG: "reroll any one d20 roll"); other dice in the formula keep their results.
+ */
+export function withD20(roll: RollJSON, die: RollTermJSON): RollJSON {
+  const copy: RollJSON = structuredClone(roll);
+  const old = copy.terms[0];
+  copy.terms[0] = { ...structuredClone(die), options: old.options ?? {} };
+  copy.total = roll.total - keptTotal(old) + keptTotal(die);
+  return copy;
 }
 
 /** Strip characters that would break a Foundry flavor tag. */

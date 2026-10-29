@@ -1,6 +1,5 @@
 // Minimal ambient declarations for the Foundry v13 and pf1 client globals.
 // No Foundry type package is used: these are deliberately loose.
-/* eslint-disable no-var */
 declare var game: any;
 declare var canvas: any;
 declare var foundry: any;

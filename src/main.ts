@@ -3,6 +3,7 @@ import { DEFAULT_ITEM_NAME, heroPointItem, heroPoints, spend } from "./hero-poin
 import { useOnMessage } from "./apply";
 import { isArmed, registerBeforeRollHooks, setArmed } from "./before-roll";
 import { registerContextMenu } from "./context-menu";
+import { addHeroPoints, heroPointItemData, registerActorDirectoryMenu } from "./create-item";
 import { rollTargets } from "./targets";
 
 Hooks.once("init", () => {
@@ -33,9 +34,10 @@ Hooks.once("init", () => {
 
   registerContextMenu();
   registerBeforeRollHooks();
+  registerActorDirectoryMenu();
 });
 
 Hooks.once("ready", () => {
   const mod = game.modules.get(MODULE_ID);
-  if (mod) mod.api = { heroPointItem, heroPoints, spend, isArmed, setArmed, rollTargets, useOnMessage };
+  if (mod) mod.api = { heroPointItem, heroPoints, spend, addHeroPoints, heroPointItemData, isArmed, setArmed, rollTargets, useOnMessage };
 });
